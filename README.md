@@ -1,1 +1,2 @@
-# Informatyka_w_medycynie
+# Informatyka w medycynie
+Do .gitignore dodałam folder Zdjecia/* 
