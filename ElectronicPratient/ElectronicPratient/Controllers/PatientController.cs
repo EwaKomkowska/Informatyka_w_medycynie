@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Web.Mvc;
+using ElectronicPratient.Models;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;
 using PagedList;
@@ -73,82 +75,68 @@ namespace ElectronicPratient.Controllers
         public ActionResult ShowInfo()
         {
             //POKAZYWANIE WSZYSTKICH INFORMACJI O PACJENCIE
-
             //ŁĄCZENIE Z SERWEREM
             var client = new FhirClient("http://localhost:8080/baseR4");        //second parameter - check standard version
             client.PreferredFormat = ResourceFormat.Json;
 
+            //TODO: PRZEKAZAĆ ID PACJENTA
+            Patient myPatient = client.Read<Patient>("Patient/5cbc121b-cd71-4428-b8b7-31e53eba8184");
+
+            UriBuilder UriBuilderx = new UriBuilder("http://localhost:8080/baseR4");
+            UriBuilderx.Path = "Patient/" + myPatient.Id;   
+            Resource ReturnedResource = client.InstanceOperation(UriBuilderx.Uri, "everything");
+
 
             //DANE OSOBOWE PACJENTA
-            //var pat = client.Read<Patient>("Patient/id");
-
-            //var hist = client.History("Patient/5cbc121b-cd71-4428-b8b7-31e53eba8184", new FhirDateTime("2016-11-29").ToDateTimeOffset());
-
-            /*var patient = new Patient();
-            patient.Active = true;
-            patient.Name.Add(new HumanName().WithGiven("Christopher").WithGiven("C.H.").AndFamily("Parks"));
-
-           // ViewBag.Patient = patient;
-           // ViewBag.History = hist;*/
-
-            var myPatients = new List<Patient>();
-
-            Bundle result = client.Search<Patient>();
-            while (result != null)
-            {
-                foreach (var e in result.Entry)
-                {
-                    if (e.Resource.TypeName == "Patient")
-                    {
-                        Patient p = (Patient)e.Resource;
-                        // do something with the resource
-                        myPatients.Add(p);
-                    }
-                }
-                result = client.Continue(result, PageDirection.Next);
-            }
-
+            ViewBag.Surname = myPatient.Name[0].Family;
+            ViewBag.Name = myPatient.Name[0].Given.FirstOrDefault();
+            ViewBag.birthDate = new Date(myPatient.BirthDate.ToString());
 
 
             //WYSZUKIWANIE "EVERYTHING"
-            var myResourceList = new List<Resource>();
-            var myObservation = new List<Observation>();
-            var myMedicationStatement = new List<MedicationRequest>();
-
-
-            UriBuilder UriBuilderx = new UriBuilder("http://localhost:8080/baseR4");
-            UriBuilderx.Path = "Patient/" + myPatients[5].Id;   
-            
-            //TODO: dlaczego bierze tylko 10pierwszych???
-            Resource ReturnedResource = client.InstanceOperation(UriBuilderx.Uri, "everything");
+            var myElemList = new List<ShowInfo>();
 
             if (ReturnedResource is Bundle)
             {
                 Bundle ReturnedBundle = ReturnedResource as Bundle;
-                //Console.WriteLine("Received: " + ReturnedBundle.Total + " results, the resources are: ");
-                foreach (var Entry in ReturnedBundle.Entry)
+                while (ReturnedBundle != null)
                 {
-                    //ViewBag.Type = string.Format("{0}/{1}", Entry.Resource.TypeName, Entry.Resource.Id);
-                    //myResourceList.Add(Entry.Resource);
-                    ViewBag.Type += Entry.Resource.TypeName;
+                    //Console.WriteLine("Received: " + ReturnedBundle.Total + " results, the resources are: ");
+                    foreach (var Entry in ReturnedBundle.Entry)
+                    {
+                        ShowInfo myElem = new ShowInfo();
+                        //DANE DO OSI CZASU
+                        if (Entry.Resource.TypeName == "Observation")
+                        {
+                            //LISTA OBSERVATION
+                            Observation observation = (Observation)Entry.Resource;
 
-                    //DANE DO OSI CZASU
-                    if (Entry.Resource.TypeName == "Observation")
-                    {
-                        //LISTA OBSERVATION
-                        var observation = client.Read<Observation>("Observation/" + Entry.Resource.Id);
-                        ViewBag.Message = observation.Code.TextElement;
-                        ViewBag.Date = observation.Effective;
-                        myObservation.Add(observation);
+                            myElem.elemID = observation.Id;
+                            myElem.originalModel = "Observation";
+
+                            var amount = observation.Value as Quantity;
+                            if (amount != null)
+                                 myElem.amount = amount.Value + " " + amount.Unit;
+                            myElem.date = new Date(observation.Effective.ToString().Substring(0, 10));
+                            myElem.reason = observation.Code.Text;
+
+                            myElemList.Add(myElem);
+                        }
+                        else if (Entry.Resource.TypeName == "MedicationRequest")
+                        {
+                            //LISTA MEDICATIONSTATEMENT
+                            MedicationRequest mrequest = (MedicationRequest)Entry.Resource;
+
+                            myElem.elemID = mrequest.Id;
+                            myElem.originalModel = "MedicationRequest";
+
+                            myElem.date = new Date(mrequest.AuthoredOn.ToString().Substring(0, 10));
+                            myElem.reason += (mrequest.Medication as CodeableConcept).Text;
+                            myElemList.Add(myElem);
+                        }
                     }
-                    else if (Entry.Resource.TypeName == "MedicationRequest")
-                    {
-                        //LISTA MEDICATIONSTATEMENT
-                        var statement = client.Read<MedicationRequest>("MedicationRequest/" + Entry.Resource.Id);
-                        ViewBag.Message = statement.Status;
-                        ViewBag.Date = statement.Intent;
-                        myMedicationStatement.Add(statement);
-                    }
+
+                    ReturnedBundle = client.Continue(ReturnedBundle, PageDirection.Next);
                 }
             }
             else
@@ -159,24 +147,7 @@ namespace ElectronicPratient.Controllers
             //TODO!!!!
             //LISTA MEDICATION - tylko do uzupełinenia informacji
 
-            ViewBag.Observation = myObservation;
-            ViewBag.Medication = myMedicationStatement;
-
-            return View(myResourceList);
-        }
-
-        [HttpGet]
-        public ActionResult Create()
-        {
-            //TOWRZENIE NOWEGO PACJENTA 
-            return View();
-        }
-
-        [HttpPost]
-        public ActionResult Create(Patient patient)
-        {
-            //TODO: tu ma być dodanie nowego pacjenta
-            return View();
+            return View(myElemList);
         }
     }
 }
