@@ -1,0 +1,63 @@
+﻿@model PagedList.IPagedList<Hl7.Fhir.Model.Patient>
+@using PagedList.Mvc;
+
+
+@{
+    ViewBag.Title = "Patient List";
+}
+
+<h2>Patient List</h2>
+
+
+<div>
+    @Html.ActionLink("Create New", "Create")
+</div>
+
+
+@using (Html.BeginForm("Index", "Patient", FormMethod.Get))
+{
+    <p>
+        Find by Surname: @Html.TextBox("SearchString", ViewBag.CurrentFilter as string)
+        <input type="submit" value="Search" />
+    </p>
+}
+
+
+<table class="table">
+    <tr>
+        <th>
+            @Html.ActionLink("First name", "Index", new { sortOrder = "name", currentFilter = ViewBag.CurrentFilter })
+        </th>
+        <th>
+            @Html.ActionLink("Surname", "Index", new { sortOrder = "name", currentFilter = ViewBag.CurrentFilter })
+        </th>
+        <th>
+        </th>
+    </tr>
+
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name[0].Given)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name[0].Family)
+            </td>
+            <td>
+                @Html.ActionLink("Details", "ShowInfo")
+            </td>
+        </tr>
+    }
+</table>
+
+<br />
+
+Page @(Model.PageCount < Model.PageNumber ? 0 : Model.PageNumber) of @Model.PageCount
+@Html.PagedListPager(Model, page => Url.Action("Index", new { page, sortOrder = ViewBag.CurrentSort, currentFilter = ViewBag.CurrentFilter }))
+
+
+@section Scripts {
+    <script src="∼/Scripts/jquery-1.10.2.js"></script>
+    <script src="∼/Scripts/jquery.unobtrusive-ajax.js"></script>
+}

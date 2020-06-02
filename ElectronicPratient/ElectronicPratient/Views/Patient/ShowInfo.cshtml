@@ -1,0 +1,37 @@
+﻿@{
+    ViewBag.Title = "Show Info";
+}
+
+<h2>Patient </h2>
+<!-- TODO: wyswietlic szczegoly wszystkie + nazwe pacjenta u góry -->
+
+<p> @ViewBag.Message </p>
+<p> @ViewBag.Date </p>
+@ViewBag.Type
+
+<!--<table>
+    <tr>
+        <th> Id </th>
+        <th> Type </th>
+    </tr>
+
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>
+                @item.Id
+            </td>
+            <td>
+                @item.TypeName
+            </td>
+        </tr>
+    }
+</table>-->
+
+
+<br />
+<div>
+    @Html.ActionLink("Back to Patient List", "Index")
+</div>
+
+
