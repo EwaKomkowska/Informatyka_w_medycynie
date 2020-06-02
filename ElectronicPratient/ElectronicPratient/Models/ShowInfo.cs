@@ -1,5 +1,4 @@
-﻿using Hl7.Fhir.Model;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace ElectronicPratient.Models
@@ -9,7 +8,7 @@ namespace ElectronicPratient.Models
         //HISTORIA LECZENIA
         [Display(Name = "Date")]
         [DataType(DataType.Date)]
-        public Date date;
+        public DateTime date;
 
         [Display(Name = "Reason")]
         public string reason;

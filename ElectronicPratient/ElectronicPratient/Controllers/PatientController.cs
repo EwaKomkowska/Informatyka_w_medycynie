@@ -72,15 +72,13 @@ namespace ElectronicPratient.Controllers
         }
 
 
-        public ActionResult ShowInfo()
+        public ViewResult ShowInfo(string id, DateTime? after, DateTime? before, int? page)
         {
             //POKAZYWANIE WSZYSTKICH INFORMACJI O PACJENCIE
             //ŁĄCZENIE Z SERWEREM
             var client = new FhirClient("http://localhost:8080/baseR4");        //second parameter - check standard version
             client.PreferredFormat = ResourceFormat.Json;
-
-            //TODO: PRZEKAZAĆ ID PACJENTA
-            Patient myPatient = client.Read<Patient>("Patient/5cbc121b-cd71-4428-b8b7-31e53eba8184");
+            Patient myPatient = client.Read<Patient>("Patient/" + id);      
 
             UriBuilder UriBuilderx = new UriBuilder("http://localhost:8080/baseR4");
             UriBuilderx.Path = "Patient/" + myPatient.Id;   
@@ -92,7 +90,6 @@ namespace ElectronicPratient.Controllers
             ViewBag.Name = myPatient.Name[0].Given.FirstOrDefault();
             ViewBag.birthDate = new Date(myPatient.BirthDate.ToString());
 
-
             //WYSZUKIWANIE "EVERYTHING"
             var myElemList = new List<ShowInfo>();
 
@@ -101,7 +98,6 @@ namespace ElectronicPratient.Controllers
                 Bundle ReturnedBundle = ReturnedResource as Bundle;
                 while (ReturnedBundle != null)
                 {
-                    //Console.WriteLine("Received: " + ReturnedBundle.Total + " results, the resources are: ");
                     foreach (var Entry in ReturnedBundle.Entry)
                     {
                         ShowInfo myElem = new ShowInfo();
@@ -117,7 +113,7 @@ namespace ElectronicPratient.Controllers
                             var amount = observation.Value as Quantity;
                             if (amount != null)
                                  myElem.amount = amount.Value + " " + amount.Unit;
-                            myElem.date = new Date(observation.Effective.ToString().Substring(0, 10));
+                            myElem.date = Convert.ToDateTime(observation.Effective.ToString());
                             myElem.reason = observation.Code.Text;
 
                             myElemList.Add(myElem);
@@ -130,7 +126,7 @@ namespace ElectronicPratient.Controllers
                             myElem.elemID = mrequest.Id;
                             myElem.originalModel = "MedicationRequest";
 
-                            myElem.date = new Date(mrequest.AuthoredOn.ToString().Substring(0, 10));
+                            myElem.date = Convert.ToDateTime(mrequest.AuthoredOn.ToString());
                             myElem.reason += (mrequest.Medication as CodeableConcept).Text;
                             myElemList.Add(myElem);
                         }
@@ -147,7 +143,26 @@ namespace ElectronicPratient.Controllers
             //TODO!!!!
             //LISTA MEDICATION - tylko do uzupełinenia informacji
 
-            return View(myElemList);
+            //OKREŚLENIE SZUKANEJ DATY
+            if (before != null)
+            {
+                DateTime date = before.GetValueOrDefault();
+                myElemList = myElemList.FindAll(s => s.date.Date.CompareTo(date.Date) < 0);
+                ViewBag.Before = date;
+            }
+
+            if (after != null)
+            {
+                DateTime date = after.GetValueOrDefault();
+                myElemList = myElemList.FindAll(s => s.date.Date.CompareTo(date.Date) > 0);
+                ViewBag.After = date;
+            }
+
+            myElemList.Reverse();       //żeby daty były odpowiednio od najwyższej
+
+            int pageSize = 10;
+            int pageNumber = (page ?? 1);
+            return View(myElemList.ToPagedList(pageNumber, pageSize));
         }
     }
 }
