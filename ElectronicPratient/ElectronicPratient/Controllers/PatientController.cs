@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Web.Mvc;
 using ElectronicPratient.Models;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;
+using Newtonsoft.Json;
 using PagedList;
 
 
@@ -52,18 +54,6 @@ namespace ElectronicPratient.Controllers
                 myPatients = myPatients.FindAll(s => s.Name[0].Family.Contains(searchString));
             }
 
-            //SORTOWANIE
-            //TODO: trzeba to jakoś inaczej sortować, bo tak nie działa
-            /*switch (sortOrder)
-            {
-                case "name":
-                    myPatients.Sort();
-                    break;
-                default:  
-                    myPatients.Reverse();
-                    break;
-            }*/
-
             //STRONICOWANIE 
             int pageSize = 10;
             int pageNumber = (page ?? 1);
@@ -87,6 +77,7 @@ namespace ElectronicPratient.Controllers
 
             //DANE OSOBOWE PACJENTA
             ViewBag.Surname = myPatient.Name[0].Family;
+            ViewBag.ID = myPatient.Id;
             ViewBag.Name = myPatient.Name[0].Given.FirstOrDefault();
             ViewBag.birthDate = new Date(myPatient.BirthDate.ToString());
 
@@ -163,6 +154,77 @@ namespace ElectronicPratient.Controllers
             int pageSize = 10;
             int pageNumber = (page ?? 1);
             return View(myElemList.ToPagedList(pageNumber, pageSize));
+        }
+
+
+        public ActionResult Chart(string id, DateTime? after, DateTime? before)
+        {
+            var client = new FhirClient("http://localhost:8080/baseR4");        //second parameter - check standard version
+            client.PreferredFormat = ResourceFormat.Json;
+            Patient myPatient = client.Read<Patient>("Patient/" + id);        //5cbc121b-cd71-4428-b8b7-31e53eba8184
+
+            UriBuilder UriBuilderx = new UriBuilder("http://localhost:8080/baseR4");
+            UriBuilderx.Path = "Patient/" + myPatient.Id;
+            Resource ReturnedResource = client.InstanceOperation(UriBuilderx.Uri, "everything");
+
+
+            //DANE OSOBOWE PACJENTA
+            ViewBag.Surname = myPatient.Name[0].Family;
+            ViewBag.Name = myPatient.Name[0].Given.FirstOrDefault();
+            ViewBag.ID = id;
+
+            //WYSZUKIWANIE "EVERYTHING"
+            var list = new List<ChartModel> { };
+
+            if (ReturnedResource is Bundle)
+            {
+                Bundle ReturnedBundle = ReturnedResource as Bundle;
+                while (ReturnedBundle != null)
+                {
+                    foreach (var Entry in ReturnedBundle.Entry)
+                    {
+                        //DANE DO OSI CZASU
+                        if (Entry.Resource.TypeName == "Observation")
+                        {
+                            //LISTA BADAŃ WAGI
+                            Observation observation = (Observation)Entry.Resource;
+                           
+                            if (observation.Code.Text.Contains("Body Weight"))
+                            {
+                                var val = observation.Value as Quantity;
+                                var amount = double.Parse((val.Value).ToString());
+                                var date = observation.Effective.ToString().Substring(0,10);
+                                var point = new ChartModel(amount, date);   
+                                list.Add(point);
+                            }
+                        }
+                    }
+
+                    ReturnedBundle = client.Continue(ReturnedBundle, PageDirection.Next);
+                }
+            }
+            else
+            {
+                throw new Exception("Operation call must return a bundle resource");
+            }
+
+            //OKREŚLENIE SZUKANEJ DATY
+            if (before != null)
+            {
+                DateTime date = before.GetValueOrDefault();
+                list = list.FindAll(s => Convert.ToDateTime(s.label).Date.CompareTo(date.Date) < 0);
+                ViewBag.Before = date;
+            }
+
+            if (after != null)
+            {
+                DateTime date = after.GetValueOrDefault();
+                list = list.FindAll(s => Convert.ToDateTime(s.label).Date.CompareTo(date.Date) > 0);
+                ViewBag.After = date;
+            }
+
+            ViewBag.DataPoints = JsonConvert.SerializeObject(list);
+            return View();
         }
     }
 }
