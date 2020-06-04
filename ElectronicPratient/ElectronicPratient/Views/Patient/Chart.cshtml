@@ -1,0 +1,66 @@
+﻿
+@{
+    ViewBag.Title = "Chart";
+}
+
+<br />
+<br />
+
+@using (Html.BeginForm("Chart", "Patient", FormMethod.Post))
+{
+    <p>
+        <label> Search Date after: </label>
+        @Html.TextBox("after", ViewBag.Before as DateTime?, new { type = "date" })
+
+        <br />
+        <br />
+
+        <label>Search Date before:</label>
+        @Html.TextBox("before", ViewBag.After as DateTime?, new { type = "date" })
+
+        <br />
+        <br />
+
+        <input type="submit" value="Search" />
+    </p>
+}
+
+<br />
+
+<div style="float: right;">
+    @Html.ActionLink("Back to Patient", "ShowInfo", new { id = ViewBag.ID })
+</div>
+
+<br />
+<br />
+<br />
+
+<div id="chartContainer"></div>
+
+
+<script type="text/javascript">
+    var name = '@ViewBag.Name'
+    var surname = '@ViewBag.Surname'
+
+    window.onload = function () {
+        var chart = new CanvasJS.Chart("chartContainer", {
+            theme: "light2",
+            animationEnabled: true,
+            title: {
+                text: "Weight (kg)"
+            },
+            subtitles: [
+                { text: "" + this.name + " " + this.surname }
+            ],
+            data: [
+                {
+                    type: "line", //change type to bar, line, area, pie, etc
+                    dataPoints: @Html.Raw(ViewBag.DataPoints)
+                }
+            ]
+        });
+        chart.render();
+    };
+</script>
+
+<script src="https://canvasjs.com/assets/script/canvasjs.min.js">

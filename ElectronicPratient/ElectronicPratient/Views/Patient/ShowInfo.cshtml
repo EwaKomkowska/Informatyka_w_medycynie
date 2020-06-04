@@ -1,37 +1,96 @@
-﻿@{
+﻿@model PagedList.IPagedList<ElectronicPratient.Models.ShowInfo>
+@using PagedList.Mvc;
+
+@{
     ViewBag.Title = "Show Info";
 }
 
-<h2>Patient </h2>
+<h2>Patient @ViewBag.Name @ViewBag.Surname </h2>
 <!-- TODO: wyswietlic szczegoly wszystkie + nazwe pacjenta u góry -->
 
-<p> @ViewBag.Message </p>
-<p> @ViewBag.Date </p>
-@ViewBag.Type
+<h6 style="float:right;"> Date of Birth: @ViewBag.birthDate </h6>
+<br />
+<br />
 
-<!--<table>
+
+<input type="button" class="btn btn-success" style="float:right;" value="Weight Chart!" onclick="location.href='@Url.Action("Chart", "Patient", new { id = ViewBag.ID })'" />
+
+
+
+@using (Html.BeginForm("ShowInfo", "Patient", FormMethod.Post))
+{
+    <p>
+        <label> Search Date after: </label>
+        @Html.TextBox("after", ViewBag.Before as DateTime?, new { type = "date" })
+
+        <br />
+        <br />
+
+        <label>Search Date before:</label>
+        @Html.TextBox("before", ViewBag.After as DateTime?, new { type = "date" })
+
+        <br />
+        <br />
+
+        <input type="submit" value="Search" />
+    </p>
+}
+
+<br />
+<br />
+
+<table class="table">
     <tr>
-        <th> Id </th>
-        <th> Type </th>
+        <th>
+            Date
+        </th>
+        <th>
+            Reason
+        </th>
+        <th>
+            Unit Amount
+        </th>
+        <th>
+            Type
+        </th>
+        <th>
+        </th>
     </tr>
 
     @foreach (var item in Model)
     {
         <tr>
             <td>
-                @item.Id
+                @Html.DisplayFor(modelItem => item.date)
             </td>
             <td>
-                @item.TypeName
+                @Html.DisplayFor(modelItem => item.reason)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.amount)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.originalModel)
+            </td>
+            <td>
+                @Html.ActionLink("Edit", "Edit" + item.originalModel, new { id = item.elemID, type = item.originalModel, patientID = ViewBag.ID } )
             </td>
         </tr>
-    }
-</table>-->
 
+    }
+</table>
 
 <br />
+
+Page @(Model.PageCount < Model.PageNumber ? 0 : Model.PageNumber) of @Model.PageCount
+@Html.PagedListPager(Model, page => Url.Action("ShowInfo", new { after = ViewBag.After, before = ViewBag.Before, page }))
+
+
 <div>
     @Html.ActionLink("Back to Patient List", "Index")
 </div>
 
-
+@section Scripts {
+    <script src="∼/Scripts/jquery-1.10.2.js"></script>
+    <script src="∼/Scripts/jquery.unobtrusive-ajax.js"></script>
+}

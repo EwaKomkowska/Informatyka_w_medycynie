@@ -8,15 +8,15 @@ namespace ElectronicPratient.Models
         //HISTORIA LECZENIA
         [Display(Name = "Date")]
         [DataType(DataType.Date)]
-        public DateTime date;
+        public DateTime date { get; set; }
 
         [Display(Name = "Reason")]
-        public string reason;
+        public string reason { get; set; }
 
         [Display(Name = "Amount")]
-        public string amount;
+        public string amount { get; set; }
 
-        public string originalModel;
-        public string elemID;
+        public string originalModel { get; set; }
+        public string elemID { get; set; }
     }
 }

@@ -9,12 +9,7 @@
 <h2>Patient List</h2>
 
 
-<div>
-    @Html.ActionLink("Create New", "Create")
-</div>
-
-
-@using (Html.BeginForm("Index", "Patient", FormMethod.Get))
+@using (Html.BeginForm("Index", "Patient", FormMethod.Post))
 {
     <p>
         Find by Surname: @Html.TextBox("SearchString", ViewBag.CurrentFilter as string)
@@ -45,7 +40,9 @@
                 @Html.DisplayFor(modelItem => item.Name[0].Family)
             </td>
             <td>
-                @Html.ActionLink("Details", "ShowInfo")
+                @Html.ActionLink("Details", "ShowInfo", new { item.Id } )
+            |
+                @Html.ActionLink("Edit", "EditPatient", new { item.Id, type = "Patient" } )
             </td>
         </tr>
     }
