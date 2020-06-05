@@ -198,6 +198,9 @@
     <Compile Include="Models\EditMedicationRequest.cs" />
     <Compile Include="Models\EditObservation.cs" />
     <Compile Include="Models\EditPatient.cs" />
+    <Compile Include="Models\HistoryMedicationRequest.cs" />
+    <Compile Include="Models\HistoryObservation.cs" />
+    <Compile Include="Models\HistoryPatient.cs" />
     <Compile Include="Models\ShowInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -221,6 +224,9 @@
     <Content Include="Views\Patient\EditPatient.cshtml" />
     <Content Include="Views\Patient\EditMedicationRequest.cshtml" />
     <Content Include="Views\Patient\EditObservation.cshtml" />
+    <Content Include="Views\Patient\HistoryPatient.cshtml" />
+    <Content Include="Views\Patient\HistoryMedicationRequest.cshtml" />
+    <Content Include="Views\Patient\HistoryObservation.cshtml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>

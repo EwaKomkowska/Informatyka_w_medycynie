@@ -130,9 +130,6 @@ namespace ElectronicPratient.Controllers
                 throw new Exception("Operation call must return a bundle resource");
             }
 
-            //TODO!!!!
-            //LISTA MEDICATION - tylko do uzupełinenia informacji
-
             //OKREŚLENIE SZUKANEJ DATY
             if (before != null)
             {
@@ -230,16 +227,19 @@ namespace ElectronicPratient.Controllers
         [HttpGet]
         public ActionResult EditObservation(string id, string type, string patientID)
         {
+            //POŁĄCZENIE Z KLIENTEM
             var client = new FhirClient("http://localhost:8080/baseR4");
             client.PreferredFormat = ResourceFormat.Json;
             ViewBag.ID = patientID;
 
             if (type == "Observation")
             {
+                //POBRANIE DANYCH O OBSERWACJI 
                 Observation observation = client.Read<Observation>("Observation/" + id);
                 EditObservation myObservation = new EditObservation();
+                
+                //PRZEKAZANIE DO EDYCJI
                 myObservation.Reason = observation.Code.Text;
-                //myObservation.Date = Convert.ToDateTime(observation.Effective.ToString()).ToShortDateString();        //nie chciało dawać daty w okienku ładnie
                 myObservation.ID = observation.Id;
                 myObservation.Status = observation.Status;
                 return View(myObservation);
@@ -253,14 +253,18 @@ namespace ElectronicPratient.Controllers
         [HttpGet]
         public ActionResult EditMedicationRequest(string id, string type, string patientID)
         {
+            //POŁĄCZENIE Z KLIENTEM
             var client = new FhirClient("http://localhost:8080/baseR4");
             client.PreferredFormat = ResourceFormat.Json;
             ViewBag.ID = patientID;
 
             if (type == "MedicationRequest")
             {
+                //WYSZUKANIE ZASOBU
                 MedicationRequest request = client.Read<MedicationRequest>("MedicationRequest/" + id);
                 EditMedicationRequest mrequest = new EditMedicationRequest();
+
+                //PRZEKAZANIE DANYCH
                 mrequest.Reason = (request.Medication as CodeableConcept).Text;
                 if (request.DosageInstruction.Count() > 0)
                 {
@@ -282,14 +286,18 @@ namespace ElectronicPratient.Controllers
         [HttpGet]
         public ActionResult EditPatient(string id, string type)
         {
+            //PODŁĄCZENIE KLIENTA
             var client = new FhirClient("http://localhost:8080/baseR4");
             client.PreferredFormat = ResourceFormat.Json;
             ViewBag.ID = id;
 
             if (type == "Patient")
             {
+                //WYSZUKANIE ZASOBU
                 Patient patient = client.Read<Patient>("Patient/" + id);
                 EditPatient myPatient = new EditPatient();
+
+                //PRZEKAZANIE DANYCH
                 myPatient.Name = patient.Name[0].Given.FirstOrDefault();
                 myPatient.Surname = patient.Name[0].Family;
                 myPatient.Address = patient.Address[0].Text;
@@ -307,15 +315,21 @@ namespace ElectronicPratient.Controllers
         {
             bool status = false;
             string Message = "";
+
+            //SPRAWDZENIE MODELU
             if (ModelState.IsValid)
             {
+                //PODŁĄCZENIE DO KLIENTA
                 var client = new FhirClient("http://localhost:8080/baseR4");
                 client.PreferredFormat = ResourceFormat.Json;
 
+                //PRZEKAZANIE DANYCH
                 Observation original = client.Read<Observation>("Observation/" + observation.ID);
                 original.Code.Text = observation.Reason;
                 original.Status = observation.Status;
 
+
+                //UPDATE
                 client.Update(original);
                 Message = "Your item successfully UPDATE";
                 status = true;
@@ -338,17 +352,21 @@ namespace ElectronicPratient.Controllers
             bool status = false;
             string Message = "";
 
+            //SPRAWDZENIE DANYCH
             if(ModelState.IsValid)
             {
+                //PODŁĄCZENIE KLIENTA
                 var client = new FhirClient("http://localhost:8080/baseR4");
                 client.PreferredFormat = ResourceFormat.Json;
 
+                //PRZEKAZANIE DANYCH
                 MedicationRequest original = client.Read<MedicationRequest>("MedicationRequest/" + request.ID);
                 (original.Medication as CodeableConcept).Text = request.Reason;
                 Dosage dosage = new Dosage();
                 dosage.Text = request.Instruction;
                 original.DosageInstruction.Add(dosage);
 
+                //UPDATE
                 client.Update(original);
                 Message = "Your item successfully UPDATE";
                 status = true;
@@ -371,11 +389,14 @@ namespace ElectronicPratient.Controllers
             bool status = false;
             string Message = "";
 
+            //SPRAWDZENIE MODELU
             if (ModelState.IsValid)
             {
+                //PODŁĄCZENIE KLIENTA
                 var client = new FhirClient("http://localhost:8080/baseR4");
                 client.PreferredFormat = ResourceFormat.Json;
 
+                //PRZEKAZANIE DANYCH
                 Patient original = client.Read<Patient>("Patient/" + patient.ID);
                 HumanName name = new HumanName();
                 name.WithGiven(patient.Name).AndFamily(patient.Surname);
@@ -384,6 +405,7 @@ namespace ElectronicPratient.Controllers
                 address.Text = patient.Address;
                 original.Address.Add(address);
 
+                //UPDATE
                 client.Update(original);
                 Message = "Your item successfully UPDATE";
                 status = true;
@@ -397,6 +419,198 @@ namespace ElectronicPratient.Controllers
             ViewBag.Status = status;
             ViewBag.Message = Message;
             return View(patient);
+        }
+
+
+        public ActionResult HistoryPatient(string id, string type)
+        {
+            bool status = false;
+            string Message = "";
+            List<HistoryPatient> fullVersion = new List<HistoryPatient>();
+
+            //SPRAWDZENIE MODELU
+            if (ModelState.IsValid)
+            {
+                //PODŁĄCZENIE KLIENTA
+                var client = new FhirClient("http://localhost:8080/baseR4");
+                client.PreferredFormat = ResourceFormat.Json;
+                //WYSZUKANIE HISTORII
+                Bundle history = client.History("Patient/" + id);
+
+                while (history != null)
+                {
+                    foreach (var e in history.Entry)
+                    {
+                        if (e.Resource.TypeName == "Patient")
+                        {
+                            //POBRANIE POTRZBNYCH DANYCH
+                            HistoryPatient p = new HistoryPatient();
+                            p.LastUpdate = e.Resource.Meta.LastUpdated;
+                            p.VersionId = int.Parse(e.Resource.VersionId);
+
+                            Patient patient1 = (Patient)e.Resource;
+                            p.FirstName += patient1.Name[0].Given.FirstOrDefault();
+                            p.Surname += patient1.Name[0].Family;
+
+                            foreach (var elem in patient1.Address)
+                            {
+                                p.Address += elem.Text + " ";
+                            }
+                            fullVersion.Add(p);
+                        }
+                    }
+                    history = client.Continue(history, PageDirection.Next);
+                }
+                status = true;
+                ViewBag.ID = id;
+            }
+            else
+            {
+                Message = "You haven't got right model";
+            }
+
+            for (int i = 0; i < fullVersion.Count - 1; i++)
+            {
+                if (fullVersion[i].FirstName != fullVersion[i+1].FirstName)
+                {
+                    fullVersion[i].color[0] = "green";
+                }
+                if (fullVersion[i].Surname != fullVersion[i+1].Surname)
+                {
+                    fullVersion[i].color[1] = "green";
+                }
+                if (fullVersion[i].Address != fullVersion[i+1].Address)
+                {
+                    fullVersion[i].color[2] = "green";
+                }
+            }
+            
+            ViewBag.Status = status;
+            ViewBag.Message = Message;
+            return View(fullVersion);
+        }
+
+        public ActionResult HistoryObservation(string id, string type, string patientID)
+        {
+            bool status = false;
+            string Message = "";
+            List<HistoryObservation> fullVersion = new List<HistoryObservation>();
+
+            //SPRAWDZENIE MODELU
+            if (ModelState.IsValid)
+            {
+                //PODŁĄCZENIE KLIENTA
+                var client = new FhirClient("http://localhost:8080/baseR4");
+                client.PreferredFormat = ResourceFormat.Json;
+                //WYSZUKANIE HISTORII
+                Bundle history = client.History("Observation/" + id);
+
+                while (history != null)
+                {
+                    foreach (var e in history.Entry)
+                    {
+                        if (e.Resource.TypeName == "Observation")
+                        {
+                            //POBRANIE POTRZBNYCH DANYCH
+                            HistoryObservation observation = new Models.HistoryObservation();
+                            observation.LastUpdate = e.Resource.Meta.LastUpdated;
+                            observation.VersionId = int.Parse(e.Resource.VersionId);
+
+                            Observation obs = (Observation)e.Resource;
+                            observation.Reason = obs.Code.Text;
+                            observation.Status = obs.Status;
+
+                            fullVersion.Add(observation);
+                        }
+                    }
+                    history = client.Continue(history, PageDirection.Next);
+                }
+                status = true;
+            }
+            else
+            {
+                Message = "You haven't got right model";
+            }
+
+            for (int i = 0; i < fullVersion.Count - 1; i++)
+            {
+                if (fullVersion[i].Reason != fullVersion[i + 1].Reason)
+                {
+                    fullVersion[i].color[0] = "green";
+                }
+                if (fullVersion[i].Status != fullVersion[i + 1].Status)
+                {
+                    fullVersion[i].color[1] = "green";
+                }
+            }
+
+            ViewBag.ID = patientID;
+            ViewBag.Status = status;
+            ViewBag.Message = Message;
+            return View(fullVersion);
+        }
+
+        public ActionResult HistoryMedicationRequest(string id, string type, string patientID)
+        {
+            bool status = false;
+            string Message = "";
+            List<HistoryMedicationRequest> fullVersion = new List<HistoryMedicationRequest>();
+
+            //SPRAWDZENIE MODELU
+            if (ModelState.IsValid)
+            {
+                //PODŁĄCZENIE KLIENTA
+                var client = new FhirClient("http://localhost:8080/baseR4");
+                client.PreferredFormat = ResourceFormat.Json;
+                //WYSZUKANIE HISTORII
+                Bundle history = client.History("MedicationRequest/" + id);
+
+                while (history != null)
+                {
+                    foreach (var e in history.Entry)
+                    {
+                        if (e.Resource.TypeName == "MedicationRequest")
+                        {
+                            //POBRANIE POTRZBNYCH DANYCH
+                            HistoryMedicationRequest request = new HistoryMedicationRequest();
+                            request.LastUpdate = e.Resource.Meta.LastUpdated;
+                            request.VersionId = int.Parse(e.Resource.VersionId);
+
+                            MedicationRequest medication = (MedicationRequest)e.Resource;
+                            request.Reason += (medication.Medication as CodeableConcept).Text;
+                            foreach (var elem in medication.DosageInstruction)
+                            {
+                                request.Instruction += elem.Text + " ";
+                            }
+
+                            fullVersion.Add(request);
+                        }
+                    }
+                    history = client.Continue(history, PageDirection.Next);
+                }
+                status = true;
+            }
+            else
+            {
+                Message = "You haven't got right model";
+            }
+
+            for (int i = 0; i < fullVersion.Count - 1; i++)
+            {
+                if (fullVersion[i].Reason != fullVersion[i + 1].Reason)
+                {
+                    fullVersion[i].color[0] = "green";
+                }
+                if (fullVersion[i].Instruction != fullVersion[i + 1].Instruction)
+                {
+                    fullVersion[i].color[1] = "green";
+                }
+            }
+
+            ViewBag.ID = patientID;
+            ViewBag.Status = status;
+            ViewBag.Message = Message;
+            return View(fullVersion);
         }
     }
 }
